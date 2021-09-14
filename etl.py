@@ -15,18 +15,15 @@ class Config:
     token_gold = os.environ.get("token_gold")
     conversion_rate_url = os.environ.get("conversion_rate_url")
 
-'''bitcoin_data_output_path = "/home/airflow/gcs/data/bitcoin_data.csv"
-gold_data_output_path = "/home/airflow/gcs/data/gold_data.csv"
-conversion_rate_output_path = "/home/airflow/gcs/data/conversion_rate.csv"
-final_output_path = "/home/airflow/gcs/data/output.csv"'''
 
 
+# global variable
 df = pd.DataFrame([])
 gold_data = 0
 conversion_rates = 0 
 
 def get_bitcoin_data(url_bitcion):
-    ###
+    ### get bit coin price data
     print('check url_bitcion {}'.format(url_bitcion))
     response = requests.get(url_bitcion)
     if response.status_code == 200:
@@ -39,11 +36,19 @@ def get_bitcoin_data(url_bitcion):
         df['Date'] = pd.to_datetime(df['Date'])
         print('BTC Dataframe')
         print(df)
+
+        '''
+        output data frame
+
+         Date                  BTC_USD_rate  BTC_THB_rate  
+1 2021-09-14 09:47:00+00:00    45794.6858  1.507309e+06     
+        
+        '''
     else:
         raise ValueError('response status {}'.format(response.status_code))
 
 def get_gold_data(token_gold):
-    ###
+    ### get gold price per ounce data
     print('check token_gold '+token_gold)
     conn = http.client.HTTPSConnection("www.goldapi.io")
     payload = ''
@@ -66,7 +71,7 @@ def get_gold_data(token_gold):
         raise ValueError('response status {} reason {}'.format(response.status, response.reason))    
     
 def get_conversion_rates(conversion_rate_url):
-    ###
+    ### get conversion usd to thb
     print("check conversion_rate_url {}".format(conversion_rate_url))
     response = requests.get(conversion_rate_url)
     if response.status_code == 200:
@@ -79,17 +84,39 @@ def get_conversion_rates(conversion_rate_url):
         raise ValueError('response status {}'.format(response.status_code))
 
 def merge_data():
-    #จำเป็นต้องส่งออกเป็น csv
-    #ทำเป็น cloud func น่าจะดีกว่า ?
-    #เขียนที่ ram มีค่าใช้จ่าย? 
+    
+    # เอา data frame (df) ที่มีข้อมูล bit coin มาเพิ่ม column ราคาทองคำ  
+
     global df
     global gold_data
     global conversion_rates
     df['XAU_USD_rate'] =  gold_data
     df['XAU_THB_rate'] =  gold_data*conversion_rates
+    
     print('df na ja')
     print(df)
 
+
+    '''
+        output data frame ที่คาดหวัง
+
+                       Date  BTC_USD_rate  BTC_THB_rate  XAU_USD_rate  XAU_THB_rate
+1 2021-09-14 09:47:00+00:00    45794.6858  1.507309e+06        1788.0    58759.5804
+        
+        output ที่ได้โดยดูจาก log ของ merge_data
+
+[2021-09-14 09:30:20,785] {logging_mixin.py:104} INFO - df na ja
+[2021-09-14 09:30:20,791] {logging_mixin.py:104} INFO - Empty DataFrame
+Columns: [XAU_USD_rate, XAU_THB_rate]
+Index: []
+
+        '''
+
+    # คำถามที่สงสัย
+    # จำเป็นต้องส่งออกเป็น csv เหมือนใน workshop ?
+    # ทำเป็น cloud func น่าจะดีกว่า ?
+    # เขียนที่ global variable ไว้ใน ram มี cost รึเปล่า เช่น ช้า, ราคา ? 
+    # การทำงานแบบ parallel computing ทำให้ logic global variable มีการคลาดเคลื่อน ?
 
 
 def store_to_data_warehouse():
